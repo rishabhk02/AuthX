@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: authx
+
+  # Disable default security completely
+  security:
+    user:
+      name: ""
+      password: ""
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+
+# Server
+server:
+  port: 8080
+
+# Swagger + OpenAPI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

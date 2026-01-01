@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    container_name: authx_db
+    environment:
+      POSTGRES_DB: authx
+      POSTGRES_USER: authx_user
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: authx_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: authx_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/authx
+      SPRING_DATASOURCE_USERNAME: authx_user
+      SPRING_DATASOURCE_PASSWORD: password123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update         # (or validate/create for your dev needs)
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      # JVM tuning
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:
