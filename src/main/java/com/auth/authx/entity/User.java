@@ -6,6 +6,7 @@ import lombok.*;
 import java.util.Set;
 
 @Data
+@Builder
 @Entity
 @Table(name = "users")
 public class User {
@@ -19,6 +20,8 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    private Boolean verified = false;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles", // Join on user_roles junction table
@@ -28,4 +31,12 @@ public class User {
     private Set<Role> roles;
 
     private Boolean enabled = true;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_permissions",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "permission_id")
+    )
+    private Set<Permission> userPermissions;
 }

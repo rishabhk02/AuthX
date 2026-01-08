@@ -6,6 +6,7 @@ import lombok.*;
 import java.util.Set;
 
 @Data
+@Builder
 @Entity
 @Table(name = "roles")
 public class Role {
@@ -18,5 +19,13 @@ public class Role {
 
     @ManyToMany(mappedBy = "roles")
     private Set<User> users;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "role_permissions",
+            joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "permission_id")
+    )
+    private Set<Permission> permissions;
 }
 

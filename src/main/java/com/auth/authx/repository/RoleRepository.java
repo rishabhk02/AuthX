@@ -1,7 +1,7 @@
 package com.authx.repository;
 
 import com.authx.entity.Role;
-import org.springframework.data.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
