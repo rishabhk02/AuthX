@@ -1,7 +1,7 @@
 # Multi-stage production ready build
 
 # Build stage
-FROM maven:3.9.6-eclipse-temurin-17 as builder
+FROM maven:3.9.6-eclipse-temurin-21 as builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -B
 
 # Run stage
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 # Copy fat JAR from builder
 COPY --from=builder /app/target/*.jar /app/authx.jar

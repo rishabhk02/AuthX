@@ -7,6 +7,8 @@ import lombok.*;
 @Builder
 @Entity
 @Table(name = "permissions")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Permission {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

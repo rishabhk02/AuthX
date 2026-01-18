@@ -1,14 +1,45 @@
 spring:
   application:
     name: authx
-
-  # Disable default security completely
   security:
     user:
       name: ""
       password: ""
 
-# Actuator endpoints
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/authx?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:authx_user}
+    password: ${DB_PASSWORD:password123}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-init-sql: SELECT 1
+      data-source-properties:
+        ApplicationName: authx
+        assumeMinServerVersion: "15"
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+        connection:
+          timezone: UTC
+    show-sql: true
+
+  liquibase:
+    enabled: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
 management:
   endpoints:
     web:
@@ -19,18 +50,35 @@ management:
     health:
       show-details: always
 
-# Server
+sendgrid:
+  api-key: ${SENDGRID_API_KEY}
+  from-email: ${SENDGRID_FROM_EMAIL}
+
+email-verification-url: ${EMAIL_VERIFICATION_URL}
+fe-login-url: ${FE_LOGIN_URL}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration:
+    access: 900000
+    refresh: 604800000
+    email-verification: 3600000
+    password-reset: 1800000
+
 server:
   port: 8080
 
-# Swagger + OpenAPI
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
 
-# Logging
 logging:
   level:
-    org.springframework: INFO
+    root: ERROR
+    org.springframework: ERROR
+    com.zaxxer.hikari: ERROR
+    com.authx: ERROR
+    org.hibernate: ERROR
+    org.apache.catalina: ERROR

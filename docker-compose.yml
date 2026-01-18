@@ -5,9 +5,11 @@ services:
     image: postgres:15
     container_name: authx_db
     environment:
-      POSTGRES_DB: authx
-      POSTGRES_USER: authx_user
-      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
@@ -34,15 +36,35 @@ services:
       - db
       - redis
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/authx
-      SPRING_DATASOURCE_USERNAME: authx_user
-      SPRING_DATASOURCE_PASSWORD: password123
+      # Database
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update         # (or validate/create for your dev needs)
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
+
+      # Redis
+      SPRING_REDIS_HOST: ${REDIS_HOST}
+      SPRING_REDIS_PORT: ${REDIS_PORT}
+
+      # SendGrid
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+
+      # URLs
+      EMAIL_VERIFICATION_URL: ${EMAIL_VERIFICATION_URL}
+      FE_LOGIN_URL: ${FE_LOGIN_URL}
+
       # JVM tuning
       JAVA_OPTS: "-Xms256m -Xmx512m"
+
     restart: unless-stopped
+
+networks:
+  authx_net:
+    driver: bridge
 
 volumes:
   db_data:

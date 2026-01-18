@@ -9,6 +9,8 @@ import java.util.Set;
 @Builder
 @Entity
 @Table(name = "roles")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Role {
     @Id()
     @GeneratedValue(strategy = GenerationType.IDENTITY)

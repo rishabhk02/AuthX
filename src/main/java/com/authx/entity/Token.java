@@ -10,6 +10,8 @@ import java.time.Instant;
 @Builder
 @Entity
 @Table(name = "tokens")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
