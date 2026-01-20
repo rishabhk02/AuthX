@@ -1,22 +1,30 @@
 package com.authx.service;
 
 import com.authx.dto.request.EmailRequest;
+import com.authx.dto.request.LoginRequest;
 import com.authx.dto.request.RegisterRequest;
+import com.authx.dto.response.LoginResponse;
 import com.authx.dto.response.RegisterResponse;
-import com.authx.dto.response.EmailVerificationResponse;
+import com.authx.entity.Permission;
+import com.authx.entity.Role;
 import com.authx.entity.Token;
-import com.authx.enums.TokenPurpose;
 import com.authx.entity.User;
+import com.authx.enums.TokenPurpose;
 import com.authx.repository.UserRepository;
 import com.authx.util.EmailTemplates;
 import io.jsonwebtoken.Claims;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
-import lombok.*;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -26,6 +34,7 @@ public class AuthService {
     private final TokenService tokenService;
     private final SendGridService sendGridService;
     private final PasswordEncoder passwordEncoder;
+    private final DataInitializationService dataInitializationService;
 
     @Value("${email-verification-url}")
     private String emailVerificationUrl;
@@ -39,12 +48,24 @@ public class AuthService {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        // Create user
+        // Get default permission and role
+        Permission defaultPermission = dataInitializationService.getDefaultPermission();
+        Role defaultRole = dataInitializationService.getDefaultRole();
+
+        Set<Permission> defaultPermissions = new HashSet<>();
+        defaultPermissions.add(defaultPermission);
+
+        Set<Role> defaultRoles = new HashSet<>();
+        defaultRoles.add(defaultRole);
+
+        // Create user with default permissions and role
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .verified(false)
                 .enabled(true)
+                .userPermissions(defaultPermissions)
+                .roles(defaultRoles)
                 .build();
 
         user = userRepository.save(user);
@@ -59,6 +80,43 @@ public class AuthService {
 
         return RegisterResponse.builder()
                 .message("Registration successful. Please check your email to verify your account.")
+                .build();
+    }
+
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
+        if (!user.getVerified()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Please verify your email before logging in");
+        }
+
+        if (!user.getEnabled()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
+        }
+
+        Token accessToken = tokenService.generateAccessToken(user);
+        Token refreshToken = tokenService.generateRefreshToken(user);
+
+        Set<String> roleNames = user.getRoles() != null
+                ? new HashSet<>(user.getRoles()).stream().map(Role::getName).collect(Collectors.toSet())
+                : new HashSet<>();
+
+        Set<String> permissionNames = user.getUserPermissions() != null
+                ? new HashSet<>(user.getUserPermissions()).stream().map(Permission::getName).collect(Collectors.toSet())
+                : new HashSet<>();
+
+        return LoginResponse.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .accessToken(accessToken.getToken())
+                .refreshToken(refreshToken.getToken())
+                .roles(roleNames)
+                .permissions(permissionNames)
                 .build();
     }
 
@@ -84,9 +142,18 @@ public class AuthService {
         }
 
         Claims claims = tokenService.extractClaims(token);
-        if (claims.get("purpose") == TokenPurpose.EMAIL_VERIFICATION) {
-            return;
+        if (!TokenPurpose.EMAIL_VERIFICATION.toString().equals(claims.get("purpose").toString())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token purpose");
         }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token purpose");
+
+        // Get user email from token and mark as verified
+        String email = claims.getSubject();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        user.setVerified(true);
+        userRepository.save(user);
+
+        log.info("Email verified for user: {}", email);
     }
 }

@@ -25,6 +25,7 @@ public class ApiResponse<T> {
         return ApiResponse.<T>builder()
                 .status(status)
                 .statusCode(statusCode)
+                .message(message)
                 .data(data)
                 .timestamp(System.currentTimeMillis())
                 .build();

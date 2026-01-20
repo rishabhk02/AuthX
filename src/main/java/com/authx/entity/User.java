@@ -30,15 +30,19 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"), // current table column id mapped to user_id
             inverseJoinColumns = @JoinColumn(name = "role_id") // other table column id mapped to role_id
     )
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Set<Role> roles;
 
     private Boolean enabled = true;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_permissions",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "permission_id")
     )
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Set<Permission> userPermissions;
 }

@@ -15,5 +15,7 @@ public class Permission {
     private Long id;
 
     @Column(unique = true, nullable = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private String name;
 }

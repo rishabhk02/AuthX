@@ -19,15 +19,19 @@ public class Role {
     @Column(unique = true, nullable = false)
     private String name;
 
-    @ManyToMany(mappedBy = "roles")
-    private Set<User> users;
+        @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+        @EqualsAndHashCode.Exclude
+        @ToString.Exclude
+        private Set<User> users;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
+        @ManyToMany(fetch = FetchType.EAGER)
+        @JoinTable(
             name = "role_permissions",
             joinColumns = @JoinColumn(name = "role_id"),
             inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
-    private Set<Permission> permissions;
+        )
+        @EqualsAndHashCode.Exclude
+        @ToString.Exclude
+        private Set<Permission> permissions;
 }
 
