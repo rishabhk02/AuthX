@@ -38,9 +38,11 @@ public class AuthService {
 
     @Value("${email-verification-url}")
     private String emailVerificationUrl;
-
-    @Value("${fe-login-url")
+    @Value("${fe-login-url}")
     private String feLoginUrl;
+
+    @Value("${password-reset-url}")
+    private String passwordResetUrl;
 
     public RegisterResponse register(RegisterRequest request) {
         // Check if email already registered
@@ -123,7 +125,7 @@ public class AuthService {
     private void sendVerificationEmail(String email, String link) {
         String htmlContent = EmailTemplates.VERIFICATION_EMAIL
                 .replace("${username}", email)
-                .replace("${verificationUrl", link);
+                .replace("${verificationUrl}", link);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(email)
@@ -132,7 +134,73 @@ public class AuthService {
                 .build();
 
         sendGridService.sendEmail(emailRequest);
-        return;
+    }
+
+    public void resendVerificationEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (Boolean.TRUE.equals(user.getVerified())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already verified");
+        }
+
+        Token token = tokenService.generateEmailVerificationToken(user);
+        String link = String.format("%s?token=%s", emailVerificationUrl, token.getToken());
+        sendVerificationEmail(email, link);
+    }
+
+    public void sendPasswordResetEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Token token = tokenService.generatePasswordResetToken(user);
+        String link = String.format("%s?token=%s", passwordResetUrl, token.getToken());
+
+        String htmlContent = EmailTemplates.PASSWORD_RESET_EMAIL
+                .replace("${username}", email)
+                .replace("${resetUrl}", link);
+
+        EmailRequest emailRequest = EmailRequest.builder()
+                .to(email)
+                .subject("Reset your password - AuthX")
+                .htmlBody(htmlContent)
+                .build();
+
+        sendGridService.sendEmail(emailRequest);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        boolean isValid = tokenService.isTokenValid(token);
+        if (!isValid) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+        }
+
+        Claims claims = tokenService.extractClaims(token);
+        if (!TokenPurpose.PASSWORD_RESET.toString().equals(claims.get("purpose").toString())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token purpose");
+        }
+
+        String email = claims.getSubject();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // revoke used token
+        tokenService.revokeToken(token);
+    }
+
+    public void updatePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
     public void verifyEmail(String token) {

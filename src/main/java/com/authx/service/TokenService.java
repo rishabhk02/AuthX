@@ -4,6 +4,7 @@ import com.authx.entity.Token;
 import com.authx.enums.TokenPurpose;
 import com.authx.entity.User;
 import com.authx.repository.TokenRepository;
+import com.authx.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -21,6 +22,7 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class TokenService {
     private final TokenRepository tokenRepository;
+    private final UserRepository userRepository;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -91,5 +93,20 @@ public class TokenService {
             tokenRepository.save(res);
             return true;
         }).orElse(false);
+    }
+
+    public void revokeAllTokensForUser(User user) {
+        // revoke access and refresh tokens
+        for (TokenPurpose purpose : new TokenPurpose[]{TokenPurpose.ACCESS, TokenPurpose.REFRESH}) {
+            var tokens = tokenRepository.findByUserAndPurposeAndRevokedFalse(user, purpose);
+            if (tokens != null && !tokens.isEmpty()) {
+                tokens.forEach(t -> t.setRevoked(Boolean.TRUE));
+                tokenRepository.saveAll(tokens);
+            }
+        }
+    }
+
+    public void revokeAllTokensForUserId(Long userId) {
+        userRepository.findById(userId).ifPresent(this::revokeAllTokensForUser);
     }
 }

@@ -9,8 +9,15 @@ import com.authx.dto.response.EmailVerificationResponse;
 import com.authx.dto.response.LoginResponse;
 import com.authx.dto.response.RegisterResponse;
 import com.authx.dto.response.UserDetailsResponse;
+import com.authx.dto.request.ForgotPasswordRequest;
+import com.authx.dto.request.ResetPasswordRequest;
+import com.authx.dto.request.UpdatePasswordRequest;
+import com.authx.security.UserPrincipal;
 import com.authx.service.AuthService;
+import com.authx.service.TokenService;
 import com.authx.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final AuthService authService;
     private final UserService userService;
+    private final TokenService tokenService;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
@@ -47,6 +55,34 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.response("Login successful", "success", 200, response));
+    }
+
+    @PostMapping("/resend-verification")
+    @Operation(summary = "Resend verification email")
+    public ResponseEntity<ApiResponse<Object>> resendVerification(@RequestParam String email) {
+        authService.resendVerificationEmail(email);
+        return ResponseEntity.ok(ApiResponse.response("Verification email resent", "success", 200, null));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Send password reset email")
+    public ResponseEntity<ApiResponse<Object>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+        authService.sendPasswordResetEmail(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.response("Password reset email sent", "success", 200, null));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password using token")
+    public ResponseEntity<ApiResponse<Object>> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.response("Password reset successful", "success", 200, null));
+    }
+
+    @PostMapping("/update-password")
+    @Operation(summary = "Update password for authenticated user", security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<ApiResponse<Object>> updatePassword(@AuthenticationPrincipal UserPrincipal principal, @RequestBody @Valid UpdatePasswordRequest request) {
+        authService.updatePassword(principal.getId(), request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.response("Password updated successfully", "success", 200, null));
     }
 
     @PostMapping("/assign-roles")
@@ -71,5 +107,23 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserDetailsResponse>> getUserDetails(@PathVariable Long userId) {
         UserDetailsResponse response = userService.getUserDetails(userId);
         return ResponseEntity.ok(ApiResponse.response("User details retrieved successfully", "success", 200, response));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout (revoke current token)", security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<ApiResponse<Object>> logout(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+            tokenService.revokeToken(token);
+        }
+        return ResponseEntity.ok(ApiResponse.response("Logged out", "success", 200, null));
+    }
+
+    @PostMapping("/logout-all")
+    @Operation(summary = "Logout from all devices (revoke all tokens)", security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<ApiResponse<Object>> logoutAll(@AuthenticationPrincipal UserPrincipal principal) {
+        tokenService.revokeAllTokensForUserId(principal.getId());
+        return ResponseEntity.ok(ApiResponse.response("Logged out from all devices", "success", 200, null));
     }
 }
