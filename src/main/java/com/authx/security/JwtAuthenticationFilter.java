@@ -30,30 +30,45 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
+            // Check if this is a public endpoint
+            if (SecurityConfig.isPublicEndpoint(request)) {
+                filterChain.doFilter(request, response);
+                System.out.println("Public endpoint accessed: " + request.getMethod() + " " + request.getServletPath());
+                return;
+            }
+
             String authHeader = request.getHeader("Authorization");
 
-            // Check if the Authorization header contains a Bearer token
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-
-                // Validate the token
-                if (tokenService.isTokenValid(token)) {
-                    Claims claims = tokenService.extractClaims(token);
-                    String username = claims.getSubject();
-
-                    // Load user details and set authentication in the security context
-                    if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(auth);
-                    }
-                }
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing Authorization header");
+                return;
             }
+
+            String token = authHeader.substring(7);
+
+            // Validate the token
+            if (!tokenService.isTokenValid(token)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+                return;
+            }
+
+            Claims claims = tokenService.extractClaims(token);
+            String username = claims.getSubject();
+
+            // Load user details and set authentication in the security context
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
+
+            filterChain.doFilter(request, response);
+            return;
         } catch (Exception ex) {
             log.debug("Could not set user authentication: {}", ex.getMessage());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication error");
+            return;
         }
-
-        filterChain.doFilter(request, response);
     }
 }

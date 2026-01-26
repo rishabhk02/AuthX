@@ -3,13 +3,17 @@ package com.authx.service;
 import com.authx.dto.request.EmailRequest;
 import com.authx.dto.request.LoginRequest;
 import com.authx.dto.request.RegisterRequest;
+import com.authx.dto.request.VerifyOTPRequest;
+import com.authx.dto.response.LoginOTPResponse;
 import com.authx.dto.response.LoginResponse;
 import com.authx.dto.response.RegisterResponse;
+import com.authx.entity.OTPRequest;
 import com.authx.entity.Permission;
 import com.authx.entity.Role;
 import com.authx.entity.Token;
 import com.authx.entity.User;
 import com.authx.enums.TokenPurpose;
+import com.authx.repository.OTPRequestRepository;
 import com.authx.repository.UserRepository;
 import com.authx.util.EmailTemplates;
 import io.jsonwebtoken.Claims;
@@ -35,9 +39,11 @@ public class AuthService {
     private final SendGridService sendGridService;
     private final PasswordEncoder passwordEncoder;
     private final DataInitializationService dataInitializationService;
+    private final OTPRequestRepository otpRequestRepository;
 
     @Value("${email-verification-url}")
     private String emailVerificationUrl;
+
     @Value("${fe-login-url}")
     private String feLoginUrl;
 
@@ -48,6 +54,12 @@ public class AuthService {
         // Check if email already registered
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email already registered");
+        }
+
+        // Validate password strength
+        if (!isValidPassword(request.getPassword())) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long and include "
+                    + "uppercase, lowercase, digit, and special character");
         }
 
         // Get default permission and role
@@ -85,7 +97,7 @@ public class AuthService {
                 .build();
     }
 
-    public LoginResponse login(LoginRequest request) {
+    public LoginOTPResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
@@ -101,6 +113,52 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
         }
 
+        // Generate 6-digit OTP
+        String otp = String.format("%06d", (int) (Math.random() * 1000000));
+        String requestId = java.util.UUID.randomUUID().toString();
+
+        // Save OTP request (expires in 5 minutes)
+        OTPRequest otpRequest = OTPRequest.builder()
+                .requestId(requestId)
+                .user(user)
+                .otp(otp)
+                .expiryTime(java.time.Instant.now().plusSeconds(300))
+                .used(false)
+                .createdAt(java.time.Instant.now())
+                .build();
+
+        otpRequestRepository.save(otpRequest);
+
+        // Send OTP email
+        sendOTPEmail(user.getEmail(), otp);
+
+        return LoginOTPResponse.builder()
+                .requestId(requestId)
+                .build();
+    }
+
+    public LoginResponse verifyOTP(VerifyOTPRequest request) {
+        OTPRequest otpRequest = otpRequestRepository.findByRequestIdAndUsedFalse(request.getRequestId())
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired OTP request"));
+
+        // Check if OTP is expired
+        if (otpRequest.getExpiryTime().isBefore(java.time.Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "OTP has expired");
+        }
+
+        // Verify OTP
+        if (!otpRequest.getOtp().equals(request.getOtp())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid OTP");
+        }
+
+        // Mark OTP as used
+        otpRequest.setUsed(true);
+        otpRequestRepository.save(otpRequest);
+
+        User user = otpRequest.getUser();
+
+        // Generate tokens
         Token accessToken = tokenService.generateAccessToken(user);
         Token refreshToken = tokenService.generateRefreshToken(user);
 
@@ -120,6 +178,20 @@ public class AuthService {
                 .roles(roleNames)
                 .permissions(permissionNames)
                 .build();
+    }
+
+    private void sendOTPEmail(String email, String otp) {
+        String htmlContent = EmailTemplates.LOGIN_OTP_EMAIL
+                .replace("${username}", email)
+                .replace("${otpCode}", otp);
+
+        EmailRequest emailRequest = EmailRequest.builder()
+                .to(email)
+                .subject("Your Login OTP - AuthX")
+                .htmlBody(htmlContent)
+                .build();
+
+        sendGridService.sendEmail(emailRequest);
     }
 
     private void sendVerificationEmail(String email, String link) {
@@ -199,6 +271,17 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
         }
 
+        if (currentPassword.equals(newPassword)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "New password must be different from current password");
+        }
+
+        if( !isValidPassword(newPassword)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Password must be at least 8 characters long and include "
+                            + "uppercase, lowercase, digit, and special character");
+        }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
@@ -223,5 +306,10 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Email verified for user: {}", email);
+    }
+
+    private boolean isValidPassword(String password) {
+        String regex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+=\\-{}\\[\\]:;\"'<>,./~`|]).{8,}$";
+        return password.matches(regex);
     }
 }

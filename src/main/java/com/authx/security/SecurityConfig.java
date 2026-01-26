@@ -11,6 +11,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -29,12 +31,60 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/verify-email")
+                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/verify-email",
+                                "/auth/resend-verification", "/auth/forgot-password", "/auth/reset-password",
+                                "/auth/login", "/auth/verify-otp")
                         .permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    public static List<String> getPublicEndpoints() {
+        return List.of(
+                "POST:/auth/register",
+                "POST:/auth/verify-email",
+                "POST:/auth/resend-verification",
+                "POST:/auth/login",
+                "POST:/auth/verify-otp",
+                "POST:/auth/forgot-password",
+                "POST:/auth/reset-password",
+                "GET:/v3/api-docs/**",
+                "GET:/swagger-ui/**",
+                "GET:/swagger-ui.html");
+    }
+
+    public static boolean isPublicEndpoint(HttpServletRequest request) {
+        if (request == null)
+            return false;
+
+        String method = request.getMethod();
+        String path = request.getServletPath();
+
+        for (String def : getPublicEndpoints()) {
+            String[] parts = def.split(":", 2);
+            if (parts.length != 2)
+                continue;
+
+            String expectedMethod = parts[0];
+            String pattern = parts[1];
+
+            // Method matching
+            if (!expectedMethod.equalsIgnoreCase(method)) {
+                continue;
+            }
+
+            // Prefix matching
+            if (pattern.endsWith("/**")) {
+                String prefix = pattern.substring(0, pattern.length() - 3);
+                if (path.startsWith(prefix))
+                    return true;
+            } else if (pattern.equals(path)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

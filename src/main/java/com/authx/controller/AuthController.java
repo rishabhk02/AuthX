@@ -4,8 +4,10 @@ import com.authx.dto.request.AssignPermissionsRequest;
 import com.authx.dto.request.AssignRolesRequest;
 import com.authx.dto.request.LoginRequest;
 import com.authx.dto.request.RegisterRequest;
+import com.authx.dto.request.VerifyOTPRequest;
 import com.authx.dto.response.ApiResponse;
 import com.authx.dto.response.EmailVerificationResponse;
+import com.authx.dto.response.LoginOTPResponse;
 import com.authx.dto.response.LoginResponse;
 import com.authx.dto.response.RegisterResponse;
 import com.authx.dto.response.UserDetailsResponse;
@@ -51,9 +53,16 @@ public class AuthController {
     }
     
     @PostMapping("/login")
-    @Operation(summary = "Login user")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest request) {
-        LoginResponse response = authService.login(request);
+    @Operation(summary = "Login user - sends OTP to email")
+    public ResponseEntity<ApiResponse<LoginOTPResponse>> login(@RequestBody @Valid LoginRequest request) {
+        LoginOTPResponse response = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.response("OTP sent to your email", "success", 200, response));
+    }
+
+    @PostMapping("/verify-otp")
+    @Operation(summary = "Verify OTP and complete login")
+    public ResponseEntity<ApiResponse<LoginResponse>> verifyOTP(@RequestBody @Valid VerifyOTPRequest request) {
+        LoginResponse response = authService.verifyOTP(request);
         return ResponseEntity.ok(ApiResponse.response("Login successful", "success", 200, response));
     }
 

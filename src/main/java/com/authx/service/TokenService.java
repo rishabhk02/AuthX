@@ -23,6 +23,7 @@ import java.util.Date;
 public class TokenService {
     private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -71,6 +72,9 @@ public class TokenService {
     }
 
     public boolean isTokenValid(String token) {
+        // Check Redis blacklist first
+        if (tokenBlacklistService != null && tokenBlacklistService.isBlacklisted(token)) return false;
+
         Optional<Token> tokenDetail = tokenRepository.findByToken(token);
         if (tokenDetail.isEmpty() || tokenDetail.get().getRevoked() || tokenDetail.get().getExpiryDate().isBefore(Instant.now())) return false;
 
@@ -91,6 +95,12 @@ public class TokenService {
         return tokenRepository.findByToken(token).map(res -> {
             res.setRevoked(Boolean.TRUE);
             tokenRepository.save(res);
+
+            if (tokenBlacklistService != null) {
+                Instant expiry = res.getExpiryDate();
+                tokenBlacklistService.blacklistToken(token, expiry);
+            }
+
             return true;
         }).orElse(false);
     }
@@ -102,6 +112,10 @@ public class TokenService {
             if (tokens != null && !tokens.isEmpty()) {
                 tokens.forEach(t -> t.setRevoked(Boolean.TRUE));
                 tokenRepository.saveAll(tokens);
+
+                if (tokenBlacklistService != null) {
+                    tokens.forEach(t -> tokenBlacklistService.blacklistToken(t.getToken(), t.getExpiryDate()));
+                }
             }
         }
     }

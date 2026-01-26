@@ -184,4 +184,83 @@ public final class EmailTemplates {
             "    </table>\n" +
             "</body>\n" +
             "</html>\n";
+
+    public static final String LOGIN_OTP_EMAIL = "<!DOCTYPE html>\n" +
+            "<html>\n" +
+            "<head>\n" +
+            "    <meta charset=\"UTF-8\">\n" +
+            "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+            "    <title>Login Verification - AuthX</title>\n" +
+            "</head>\n" +
+            "<body style=\"margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8f9fa;\">\n"
+            +
+            "    <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: #f8f9fa;\">\n"
+            +
+            "        <tr>\n" +
+            "            <td style=\"padding: 40px 20px 20px;\">\n" +
+            "                <table role=\"presentation\" align=\"center\" width=\"600\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n"
+            +
+            "                    <tr>\n" +
+            "                        <td style=\"text-align: center; padding-bottom: 20px;\">\n" +
+            "                            <h1 style=\"margin: 0; font-size: 28px; font-weight: 700; color: #1a1a1a;\">Verify your login on <span style=\"color: #6366f1;\">AuthX</span></h1>\n"
+            +
+            "                        </td>\n" +
+            "                    </tr>\n" +
+            "                </table>\n" +
+            "            </td>\n" +
+            "        </tr>\n" +
+            "        <tr>\n" +
+            "            <td style=\"padding: 0 20px 40px;\">\n" +
+            "                <table role=\"presentation\" align=\"center\" width=\"600\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);\">\n"
+            +
+            "                    <tr>\n" +
+            "                        <td style=\"padding: 60px 50px 40px;\">\n" +
+            "                            <h2 style=\"margin: 0 0 20px; font-size: 24px; font-weight: 600; color: #1a1a1a;\">Your Login OTP</h2>\n"
+            +
+            "                            <p style=\"margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #4b5563;\">\n"
+            +
+            "                                Hi <strong>${username}</strong>,<br><br>\n" +
+            "                                Please use the verification code below to complete your login on <strong>AuthX</strong>.\n"
+            +
+            "                                This code is valid for <strong>5 minutes</strong>.\n" +
+            "                            </p>\n" +
+            "                            <table role=\"presentation\" align=\"center\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n"
+            +
+            "                                <tr>\n" +
+            "                                    <td style=\"text-align: center; padding: 30px 0;\">\n" +
+            "                                        <div style=\"display: inline-block; padding: 16px 40px; background-color: #6366f1; color: white; text-decoration: none; font-size: 22px; font-weight: 700; border-radius: 8px; letter-spacing: 2px;\">\n"
+            +
+            "                                            ${otpCode}\n" +
+            "                                        </div>\n" +
+            "                                    </td>\n" +
+            "                                </tr>\n" +
+            "                            </table>\n" +
+            "                            <p style=\"margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #6b7280; text-align: center;\">\n"
+            +
+            "                                If you did not try to log in, you can safely ignore this email.\n" +
+            "                            </p>\n" +
+            "                        </td>\n" +
+            "                    </tr>\n" +
+            "                </table>\n" +
+            "            </td>\n" +
+            "        </tr>\n" +
+            "        <tr>\n" +
+            "            <td style=\"padding: 40px 20px;\">\n" +
+            "                <table role=\"presentation\" align=\"center\" width=\"600\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n"
+            +
+            "                    <tr>\n" +
+            "                        <td style=\"text-align: center; padding: 20px 0; color: #9ca3af; font-size: 14px; line-height: 1.5; border-top: 1px solid #e5e7eb;\">\n"
+            +
+            "                            <p style=\"margin: 0 0 10px;\">Need help? Our support team is here for you.</p>\n"
+            +
+            "                            <p style=\"margin: 0;\"><strong>AuthX</strong> • The secure authentication platform<br><a href=\"https://authx.com\" style=\"color: #6366f1;\">authx.com</a> | <a href=\"mailto:support@authx.com\" style=\"color: #6366f1;\">support@authx.com</a></p>\n"
+            +
+            "                        </td>\n" +
+            "                    </tr>\n" +
+            "                </table>\n" +
+            "            </td>\n" +
+            "        </tr>\n" +
+            "    </table>\n" +
+            "</body>\n" +
+            "</html>\n";
 }
