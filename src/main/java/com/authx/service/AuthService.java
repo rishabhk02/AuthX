@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class AuthService {
     private final UserRepository userRepository;
     private final TokenService tokenService;
-    private final SendGridService sendGridService;
+    private final RabbitMQService rabbitMQService;
     private final PasswordEncoder passwordEncoder;
     private final DataInitializationService dataInitializationService;
     private final OTPRequestRepository otpRequestRepository;
@@ -191,7 +191,7 @@ public class AuthService {
                 .htmlBody(htmlContent)
                 .build();
 
-        sendGridService.sendEmail(emailRequest);
+        rabbitMQService.sendEmail(emailRequest);
     }
 
     private void sendVerificationEmail(String email, String link) {
@@ -205,7 +205,7 @@ public class AuthService {
                 .htmlBody(htmlContent)
                 .build();
 
-        sendGridService.sendEmail(emailRequest);
+        rabbitMQService.sendEmail(emailRequest);
     }
 
     public void resendVerificationEmail(String email) {
@@ -238,7 +238,7 @@ public class AuthService {
                 .htmlBody(htmlContent)
                 .build();
 
-        sendGridService.sendEmail(emailRequest);
+        rabbitMQService.sendEmail(emailRequest);
     }
 
     public void resetPassword(String token, String newPassword) {

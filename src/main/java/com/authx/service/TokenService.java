@@ -8,11 +8,13 @@ import com.authx.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import jakarta.persistence.criteria.CriteriaBuilder.In;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,9 +26,8 @@ public class TokenService {
     private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final TokenBlacklistService tokenBlacklistService;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private final PrivateKey privateKey;
+    private final PublicKey publicKey;
 
     @Value("${jwt.expiration.access}")
     private long accessExpirationMs;
@@ -39,10 +40,6 @@ public class TokenService {
 
     @Value("${jwt.expiration.password-reset}")
     private long passwordResetExpirationMs;
-
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
-    }
 
     public Token generateAccessToken(User user) {
         return generateToken(user, TokenPurpose.ACCESS, accessExpirationMs);
@@ -64,9 +61,24 @@ public class TokenService {
         Instant issuedAt = Instant.now();
         Instant expiry = issuedAt.plusMillis(durationInMilliSeconds);
 
-        String jwtToken = Jwts.builder().subject(user.getEmail()).claim("userId", user.getId()).claim("purpose", tokenPurpose.toString()).claim("tokenId", UUID.randomUUID().toString()).issuedAt(Date.from(issuedAt)).expiration(Date.from(expiry)).signWith(getSigningKey()).compact();
+        String jwtToken = Jwts.builder()
+                .subject(user.getEmail())
+                .claim("userId", user.getId())
+                .claim("purpose", tokenPurpose.toString())
+                .claim("tokenId", UUID.randomUUID().toString())
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiry))
+                .signWith(privateKey, Jwts.SIG.RS256) // Use private key for signing
+                .compact();
 
-        Token token = Token.builder().token(jwtToken).user(user).purpose(tokenPurpose).issuedAt(issuedAt).expiryDate(expiry).revoked(false).build();
+        Token token = Token.builder()
+                .token(jwtToken)
+                .user(user)
+                .purpose(tokenPurpose)
+                .issuedAt(issuedAt)
+                .expiryDate(expiry)
+                .revoked(false)
+                .build();
 
         return tokenRepository.save(token);
     }
@@ -88,7 +100,11 @@ public class TokenService {
     }
 
     public Claims extractClaims(String token) {
-        return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+        return Jwts.parser()
+                .verifyWith(publicKey) // Use public key for verification
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public boolean revokeToken(String token) {

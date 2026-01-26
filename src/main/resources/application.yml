@@ -40,6 +40,19 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 3000
+          max-attempts: 3
+          multiplier: 2.0
+
 management:
   endpoints:
     web:
@@ -59,7 +72,6 @@ fe-login-url: ${FE_LOGIN_URL}
 password-reset-url: ${PASSWORD_RESET_URL}
 
 jwt:
-  secret: ${JWT_SECRET}
   expiration:
     access: 900000
     refresh: 604800000

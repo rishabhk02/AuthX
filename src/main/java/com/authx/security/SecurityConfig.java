@@ -35,7 +35,7 @@ public class SecurityConfig {
                                 "/auth/resend-verification", "/auth/forgot-password", "/auth/reset-password",
                                 "/auth/login", "/auth/verify-otp")
                         .permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -52,8 +52,25 @@ public class SecurityConfig {
                 "POST:/auth/forgot-password",
                 "POST:/auth/reset-password",
                 "GET:/v3/api-docs/**",
+                "POST:/v3/api-docs/**",
+                "PUT:/v3/api-docs/**",
+                "DELETE:/v3/api-docs/**",
+                "PATCH:/v3/api-docs/**",
                 "GET:/swagger-ui/**",
-                "GET:/swagger-ui.html");
+                "POST:/swagger-ui/**",
+                "PUT:/swagger-ui/**",
+                "DELETE:/swagger-ui/**",
+                "PATCH:/swagger-ui/**",
+                "GET:/swagger-ui.html",
+                "POST:/swagger-ui.html",
+                "PUT:/swagger-ui.html",
+                "DELETE:/swagger-ui.html",
+                "PATCH:/swagger-ui.html",
+                "GET:/webjars/**",
+                "POST:/webjars/**",
+                "PUT:/webjars/**",
+                "DELETE:/webjars/**",
+                "PATCH:/webjars/**");
     }
 
     public static boolean isPublicEndpoint(HttpServletRequest request) {

@@ -33,7 +33,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // Check if this is a public endpoint
             if (SecurityConfig.isPublicEndpoint(request)) {
                 filterChain.doFilter(request, response);
-                System.out.println("Public endpoint accessed: " + request.getMethod() + " " + request.getServletPath());
                 return;
             }
 
