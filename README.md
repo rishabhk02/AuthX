@@ -22,7 +22,6 @@ A production-ready, enterprise-grade authentication and authorization service bu
 - [API Documentation](#-api-documentation)
 - [Project Structure](#-project-structure)
 - [Security Features](#-security-features)
-- [Contributing](#-contributing)
 - [License](#-license)
 
 ## 🎯 Purpose
@@ -46,6 +45,7 @@ AuthX is designed to provide a centralized, scalable authentication and authoriz
 - ✅ Password reset with secure tokens
 - ✅ Refresh token rotation
 - ✅ Token blacklisting on logout
+- ✅ All login device tracking
 
 ### Authorization
 - ✅ Role-Based Access Control (RBAC)
@@ -193,7 +193,7 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/authx.git
+git clone https://github.com/rishabhk02/authx.git
 cd authx
 ```
 
