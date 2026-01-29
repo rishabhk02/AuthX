@@ -1,8 +1,8 @@
 package com.authx.service.email;
 
 import com.authx.dto.request.EmailRequest;
+import com.authx.integration.email.SendGridService;
 import com.authx.service.RabbitMQService;
-import com.authx.service.SendGridService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;

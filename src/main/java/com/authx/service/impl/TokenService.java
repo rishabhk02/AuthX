@@ -1,14 +1,15 @@
-package com.authx.service;
+package com.authx.service.impl;
 
 import com.authx.entity.Token;
 import com.authx.enums.TokenPurpose;
 import com.authx.entity.User;
 import com.authx.repository.TokenRepository;
 import com.authx.repository.UserRepository;
+import com.authx.service.TokenBlacklistService;
+import com.authx.service.interfaces.ITokenService;
 import lombok.RequiredArgsConstructor;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import jakarta.persistence.criteria.CriteriaBuilder.In;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
-public class TokenService {
+public class TokenService implements ITokenService {
     private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final TokenBlacklistService tokenBlacklistService;

@@ -35,5 +35,6 @@ public class Token {
     private Instant expiryDate;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean revoked = false;
 }

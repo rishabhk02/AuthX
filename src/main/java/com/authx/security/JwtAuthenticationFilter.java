@@ -1,6 +1,6 @@
 package com.authx.security;
 
-import com.authx.service.TokenService;
+import com.authx.service.interfaces.ITokenService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,7 +24,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    private final TokenService tokenService;
+    private final ITokenService tokenService;
     private final CustomUserDetailsService userDetailsService;
 
     @Override

@@ -144,6 +144,13 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
+        <!-- Google API Client -->
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
         <!-- Devtools (auto-restart during development) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

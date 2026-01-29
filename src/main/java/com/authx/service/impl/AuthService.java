@@ -1,5 +1,6 @@
-package com.authx.service;
+package com.authx.service.impl;
 
+import com.authx.constants.AppConstants;
 import com.authx.dto.request.EmailRequest;
 import com.authx.dto.request.LoginRequest;
 import com.authx.dto.request.RegisterRequest;
@@ -15,7 +16,12 @@ import com.authx.entity.User;
 import com.authx.enums.TokenPurpose;
 import com.authx.repository.OTPRequestRepository;
 import com.authx.repository.UserRepository;
+import com.authx.service.DataInitializationService;
+import com.authx.service.RabbitMQService;
+import com.authx.service.interfaces.IAuthService;
+import com.authx.service.interfaces.ITokenService;
 import com.authx.util.EmailTemplates;
+import com.authx.util.ValidationUtils;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +32,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,9 +40,9 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthService implements IAuthService {
     private final UserRepository userRepository;
-    private final TokenService tokenService;
+    private final ITokenService tokenService;
     private final RabbitMQService rabbitMQService;
     private final PasswordEncoder passwordEncoder;
     private final DataInitializationService dataInitializationService;
@@ -53,14 +60,11 @@ public class AuthService {
     public RegisterResponse register(RegisterRequest request) {
         // Check if email already registered
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already registered");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already registered");
         }
 
         // Validate password strength
-        if (!isValidPassword(request.getPassword())) {
-            throw new IllegalArgumentException("Password must be at least 8 characters long and include "
-                    + "uppercase, lowercase, digit, and special character");
-        }
+        ValidationUtils.validatePassword(request.getPassword());
 
         // Get default permission and role
         Permission defaultPermission = dataInitializationService.getDefaultPermission();
@@ -93,7 +97,7 @@ public class AuthService {
         sendVerificationEmail(request.getEmail(), link);
 
         return RegisterResponse.builder()
-                .message("Registration successful. Please check your email to verify your account.")
+                .message(AppConstants.MSG_REGISTRATION_SUCCESS)
                 .build();
     }
 
@@ -113,18 +117,18 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
         }
 
-        // Generate 6-digit OTP
-        String otp = String.format("%06d", (int) (Math.random() * 1000000));
-        String requestId = java.util.UUID.randomUUID().toString();
+        // Generate OTP
+        String otp = ValidationUtils.generateOTP();
+        String requestId = ValidationUtils.generateRequestId();
 
         // Save OTP request (expires in 5 minutes)
         OTPRequest otpRequest = OTPRequest.builder()
                 .requestId(requestId)
                 .user(user)
                 .otp(otp)
-                .expiryTime(java.time.Instant.now().plusSeconds(300))
+                .expiryTime(Instant.now().plusSeconds(AppConstants.OTP_EXPIRY_SECONDS))
                 .used(false)
-                .createdAt(java.time.Instant.now())
+                .createdAt(Instant.now())
                 .build();
 
         otpRequestRepository.save(otpRequest);
@@ -143,13 +147,13 @@ public class AuthService {
                         () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired OTP request"));
 
         // Check if OTP is expired
-        if (otpRequest.getExpiryTime().isBefore(java.time.Instant.now())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "OTP has expired");
+        if (otpRequest.getExpiryTime().isBefore(Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, AppConstants.MSG_OTP_EXPIRED);
         }
 
         // Verify OTP
         if (!otpRequest.getOtp().equals(request.getOtp())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid OTP");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, AppConstants.MSG_INVALID_OTP);
         }
 
         // Mark OTP as used
@@ -182,12 +186,12 @@ public class AuthService {
 
     private void sendOTPEmail(String email, String otp) {
         String htmlContent = EmailTemplates.LOGIN_OTP_EMAIL
-                .replace("${username}", email)
-                .replace("${otpCode}", otp);
+                .replace(AppConstants.EMAIL_TEMPLATE_USERNAME_PLACEHOLDER, email)
+                .replace(AppConstants.EMAIL_TEMPLATE_OTP_PLACEHOLDER, otp);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(email)
-                .subject("Your Login OTP - AuthX")
+                .subject(AppConstants.EMAIL_SUBJECT_OTP)
                 .htmlBody(htmlContent)
                 .build();
 
@@ -196,12 +200,12 @@ public class AuthService {
 
     private void sendVerificationEmail(String email, String link) {
         String htmlContent = EmailTemplates.VERIFICATION_EMAIL
-                .replace("${username}", email)
-                .replace("${verificationUrl}", link);
+                .replace(AppConstants.EMAIL_TEMPLATE_USERNAME_PLACEHOLDER, email)
+                .replace(AppConstants.EMAIL_TEMPLATE_VERIFICATION_URL_PLACEHOLDER, link);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(email)
-                .subject("Verify your email address - AuthX")
+                .subject(AppConstants.EMAIL_SUBJECT_VERIFICATION)
                 .htmlBody(htmlContent)
                 .build();
 
@@ -213,7 +217,7 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         if (Boolean.TRUE.equals(user.getVerified())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already verified");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, AppConstants.MSG_EMAIL_ALREADY_VERIFIED);
         }
 
         Token token = tokenService.generateEmailVerificationToken(user);
@@ -229,12 +233,12 @@ public class AuthService {
         String link = String.format("%s?token=%s", passwordResetUrl, token.getToken());
 
         String htmlContent = EmailTemplates.PASSWORD_RESET_EMAIL
-                .replace("${username}", email)
-                .replace("${resetUrl}", link);
+                .replace(AppConstants.EMAIL_TEMPLATE_USERNAME_PLACEHOLDER, email)
+                .replace(AppConstants.EMAIL_TEMPLATE_RESET_URL_PLACEHOLDER, link);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(email)
-                .subject("Reset your password - AuthX")
+                .subject(AppConstants.EMAIL_SUBJECT_PASSWORD_RESET)
                 .htmlBody(htmlContent)
                 .build();
 
@@ -242,8 +246,7 @@ public class AuthService {
     }
 
     public void resetPassword(String token, String newPassword) {
-        boolean isValid = tokenService.isTokenValid(token);
-        if (!isValid) {
+        if (!tokenService.isTokenValid(token)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
         }
 
@@ -251,6 +254,8 @@ public class AuthService {
         if (!TokenPurpose.PASSWORD_RESET.toString().equals(claims.get("purpose").toString())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token purpose");
         }
+
+        ValidationUtils.validatePassword(newPassword);
 
         String email = claims.getSubject();
         User user = userRepository.findByEmail(email)
@@ -272,23 +277,17 @@ public class AuthService {
         }
 
         if (currentPassword.equals(newPassword)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "New password must be different from current password");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from current password");
         }
 
-        if( !isValidPassword(newPassword)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Password must be at least 8 characters long and include "
-                            + "uppercase, lowercase, digit, and special character");
-        }
+        ValidationUtils.validatePassword(newPassword);
 
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
 
     public void verifyEmail(String token) {
-        boolean isValid = tokenService.isTokenValid(token);
-        if (!isValid) {
+        if (!tokenService.isTokenValid(token)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
         }
 
@@ -306,10 +305,5 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Email verified for user: {}", email);
-    }
-
-    private boolean isValidPassword(String password) {
-        String regex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+=\\-{}\\[\\]:;\"'<>,./~`|]).{8,}$";
-        return password.matches(regex);
     }
 }

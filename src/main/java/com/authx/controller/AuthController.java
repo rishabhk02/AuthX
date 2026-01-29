@@ -12,12 +12,14 @@ import com.authx.dto.response.LoginResponse;
 import com.authx.dto.response.RegisterResponse;
 import com.authx.dto.response.UserDetailsResponse;
 import com.authx.dto.request.ForgotPasswordRequest;
+import com.authx.dto.request.GoogleLoginRequest;
 import com.authx.dto.request.ResetPasswordRequest;
 import com.authx.dto.request.UpdatePasswordRequest;
 import com.authx.security.UserPrincipal;
-import com.authx.service.AuthService;
-import com.authx.service.TokenService;
-import com.authx.service.UserService;
+import com.authx.service.interfaces.IAuthService;
+import com.authx.service.interfaces.IGoogleAuthService;
+import com.authx.service.interfaces.ITokenService;
+import com.authx.service.interfaces.IUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,24 +36,34 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    private final AuthService authService;
-    private final UserService userService;
-    private final TokenService tokenService;
+    private final IAuthService authService;
+    private final IGoogleAuthService googleAuthService;
+    private final IUserService userService;
+    private final ITokenService tokenService;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@RequestBody @Valid RegisterRequest request) {
         RegisterResponse response = authService.register(request);
-        return ResponseEntity.status(201).body(ApiResponse.response("Registration successfully", "success", 201, response));
+        return ResponseEntity.status(201)
+                .body(ApiResponse.response("Registration successfully", "success", 201, response));
     }
-    
+
     @PostMapping("/verify-email")
     @Operation(summary = "Verify user email")
     public ResponseEntity<ApiResponse<EmailVerificationResponse>> verifyEmail(@RequestParam String token) {
         authService.verifyEmail(token);
-        return ResponseEntity.ok(ApiResponse.response("Email verification successful", "success", 200, new EmailVerificationResponse("Email Verified")));
+        return ResponseEntity.ok(ApiResponse.response("Email verification successful", "success", 200,
+                new EmailVerificationResponse("Email Verified")));
     }
-    
+
+    @PostMapping("/google-login")
+    @Operation(summary = "Authenticate with Google")
+    public ResponseEntity<ApiResponse<LoginResponse>> googleLogin(@RequestBody @Valid GoogleLoginRequest request) {
+        LoginResponse response = googleAuthService.authenticateWithGoogle(request.getIdToken());
+        return ResponseEntity.ok(ApiResponse.response("Google authentication successful", "success", 200, response));
+    }
+
     @PostMapping("/login")
     @Operation(summary = "Login user - sends OTP to email")
     public ResponseEntity<ApiResponse<LoginOTPResponse>> login(@RequestBody @Valid LoginRequest request) {
@@ -89,7 +101,8 @@ public class AuthController {
 
     @PostMapping("/update-password")
     @Operation(summary = "Update password for authenticated user", security = @SecurityRequirement(name = "bearerAuth"))
-    public ResponseEntity<ApiResponse<Object>> updatePassword(@AuthenticationPrincipal UserPrincipal principal, @RequestBody @Valid UpdatePasswordRequest request) {
+    public ResponseEntity<ApiResponse<Object>> updatePassword(@AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody @Valid UpdatePasswordRequest request) {
         authService.updatePassword(principal.getId(), request.getCurrentPassword(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.response("Password updated successfully", "success", 200, null));
     }
@@ -97,7 +110,8 @@ public class AuthController {
     @PostMapping("/assign-roles")
     @Operation(summary = "Assign roles to user", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('ASSIGN_ROLES')")
-    public ResponseEntity<ApiResponse<UserDetailsResponse>> assignRolesToUser(@RequestBody @Valid AssignRolesRequest request) {
+    public ResponseEntity<ApiResponse<UserDetailsResponse>> assignRolesToUser(
+            @RequestBody @Valid AssignRolesRequest request) {
         UserDetailsResponse response = userService.assignRolesToUser(request);
         return ResponseEntity.ok(ApiResponse.response("Roles assigned successfully", "success", 200, response));
     }
@@ -105,7 +119,8 @@ public class AuthController {
     @PostMapping("/assign-permissions")
     @Operation(summary = "Assign permissions to user", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('SUPER_ADMIN') and hasAuthority('ASSIGN_PERMISSIONS')")
-    public ResponseEntity<ApiResponse<UserDetailsResponse>> assignPermissionsToUser(@RequestBody @Valid AssignPermissionsRequest request) {
+    public ResponseEntity<ApiResponse<UserDetailsResponse>> assignPermissionsToUser(
+            @RequestBody @Valid AssignPermissionsRequest request) {
         UserDetailsResponse response = userService.assignPermissionsToUser(request);
         return ResponseEntity.ok(ApiResponse.response("Permissions assigned successfully", "success", 200, response));
     }

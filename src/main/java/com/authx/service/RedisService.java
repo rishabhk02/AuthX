@@ -9,7 +9,7 @@ import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
-public class RedisTokenBlacklistService implements TokenBlacklistService {
+public class RedisService implements TokenBlacklistService {
     private final StringRedisTemplate redisTemplate;
 
     private static final String KEY_PREFIX = "blacklist:";

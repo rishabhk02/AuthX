@@ -1,4 +1,4 @@
-package com.authx.service;
+package com.authx.service.impl;
 
 import com.authx.dto.request.AssignPermissionsRequest;
 import com.authx.dto.request.AssignRolesRequest;
@@ -9,8 +9,10 @@ import com.authx.entity.User;
 import com.authx.repository.PermissionRepository;
 import com.authx.repository.RoleRepository;
 import com.authx.repository.UserRepository;
+import com.authx.service.interfaces.IUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,7 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements IUserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
@@ -36,7 +38,7 @@ public class UserService {
         Set<Role> roles = new HashSet<>();
         for (Long roleId : request.getRoleIds()) {
             Role role = roleRepository.findById(roleId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found with id: " + roleId));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found"));
             roles.add(role);
         }
 
@@ -58,7 +60,7 @@ public class UserService {
         Set<Permission> permissions = new HashSet<>();
         for (Long permissionId : request.getPermissionIds()) {
             Permission permission = permissionRepository.findById(permissionId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found with id: " + permissionId));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found"));
             permissions.add(permission);
         }
 
@@ -75,7 +77,7 @@ public class UserService {
     public UserDetailsResponse getUserDetails(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        
+
         return mapToUserDetailsResponse(user);
     }
 
@@ -85,12 +87,14 @@ public class UserService {
                 .email(user.getEmail())
                 .verified(user.getVerified())
                 .enabled(user.getEnabled())
-                .roles(user.getRoles() != null ? 
-                    new HashSet<>(user.getRoles()).stream().map(Role::getName).collect(Collectors.toSet()) : 
-                    new HashSet<>())
-                .permissions(user.getUserPermissions() != null ? 
-                    new HashSet<>(user.getUserPermissions()).stream().map(Permission::getName).collect(Collectors.toSet()) : 
-                    new HashSet<>())
+                .roles(user.getRoles() != null
+                        ? new HashSet<>(user.getRoles()).stream().map(Role::getName).collect(Collectors.toSet())
+                        : new HashSet<>())
+                .permissions(
+                        user.getUserPermissions() != null
+                                ? new HashSet<>(user.getUserPermissions()).stream().map(Permission::getName)
+                                        .collect(Collectors.toSet())
+                                : new HashSet<>())
                 .build();
     }
 }

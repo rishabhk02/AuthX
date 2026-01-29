@@ -1,4 +1,4 @@
-package com.authx.service;
+package com.authx.integration.email;
 
 import com.sendgrid.*;
 import com.sendgrid.helpers.mail.Mail;
